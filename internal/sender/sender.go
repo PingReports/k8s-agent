@@ -70,6 +70,7 @@ type InventoryItem struct {
 	Image           string            `json:"image,omitempty"`
 	SpecHash        string            `json:"spec_hash,omitempty"`
 	Labels          map[string]string `json:"labels,omitempty"`
+	Fields          json.RawMessage   `json:"fields,omitempty"`
 }
 
 type IngestAck struct {
@@ -291,6 +292,10 @@ func EventsToEntries(in []events.Event) []EventEntry {
 func InventoryToItems(in []inventory.Item) []InventoryItem {
 	out := make([]InventoryItem, len(in))
 	for i, it := range in {
+		var fields json.RawMessage
+		if it.FieldsJSON != "" {
+			fields = json.RawMessage(it.FieldsJSON)
+		}
 		out[i] = InventoryItem{
 			SnapshotTs:      it.SnapshotTs,
 			Kind:            it.Kind,
@@ -305,6 +310,7 @@ func InventoryToItems(in []inventory.Item) []InventoryItem {
 			Image:           it.Image,
 			SpecHash:        it.SpecHash,
 			Labels:          it.Labels,
+			Fields:          fields,
 		}
 	}
 	return out

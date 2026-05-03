@@ -2,8 +2,8 @@ apiVersion: v2
 name: k8s-agent
 description: PingReports Kubernetes monitoring agent
 type: application
-version: 0.1.4
-appVersion: "0.1.4"
+version: 0.1.5
+appVersion: "0.1.5"
 home: https://app-pr.sxp.dev
 sources:
   - https://github.com/PingReports/k8s-agent

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -27,6 +28,7 @@ type Item struct {
 	Image           string
 	SpecHash        string
 	Labels          map[string]string
+	FieldsJSON      string
 }
 
 type Snapshot struct {
@@ -223,7 +225,42 @@ func (c *Collector) Snapshot(ctx context.Context) (Snapshot, error) {
 		}
 	}
 
+	ings, err := c.cs.NetworkingV1().Ingresses("").List(ctx, metav1.ListOptions{})
+	if err == nil {
+		for i := range ings.Items {
+			ig := &ings.Items[i]
+			hosts := make([]string, 0, len(ig.Spec.Rules))
+			for _, r := range ig.Spec.Rules {
+				if r.Host != "" {
+					hosts = append(hosts, r.Host)
+				}
+			}
+			fields := map[string]any{"hosts": hosts}
+			if cls := ig.Spec.IngressClassName; cls != nil && *cls != "" {
+				fields["class"] = *cls
+			}
+			fb, _ := jsonMarshal(fields)
+			out.Items = append(out.Items, Item{
+				SnapshotTs: now,
+				Kind:       "Ingress",
+				NS:         ig.Namespace,
+				Name:       ig.Name,
+				UID:        string(ig.UID),
+				Labels:     trimLabels(ig.Labels),
+				FieldsJSON: fb,
+			})
+		}
+	}
+
 	return out, nil
+}
+
+func jsonMarshal(v any) (string, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
 
 func specHash(spec corev1.PodSpec) string {
