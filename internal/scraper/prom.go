@@ -118,7 +118,29 @@ func IsKnownPrefix(name string) bool {
 // metric that has operational signal. Cardinality is bounded by the
 // per-batch row caps on the server side; "ship everything we can interpret"
 // is the design choice.
+// Wildcard accept matchers — every metric whose name has one of these
+// prefixes is shipped. Per-prefix gating keeps cardinality bounded.
 var knownPrefixes = []string{
+	// Control-plane (when wired up)
+	"apiserver_",
+	"etcd_",
+	"workqueue_",
+	"rest_client_",
+	"kube_apiserver_",
+	"kube_controller_manager_",
+	"scheduler_",
+	"cluster_autoscaler_",
+	// CNIs
+	"felix_",
+	"calico_",
+	"cilium_",
+	"hubble_",
+	"weave_",
+	"flannel_",
+	// Ingress controllers
+	"nginx_ingress_controller_",
+	"traefik_",
+	"controller_request_",
 	// kube-state-metrics — every workload kind + cluster-level resource
 	"kube_pod_",
 	"kube_deployment_",
