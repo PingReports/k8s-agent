@@ -1,0 +1,73 @@
+# PingReports k8s-agent default values.
+# Required at install:
+#   --set cluster.id=<uuid>
+#   --set cluster.secret=<token>
+
+cluster:
+  id: ""
+  secret: ""
+
+ingest:
+  endpoint: https://app-pr.sxp.dev/api/v1/k8s/ingest
+
+metrics:
+  # If unset, the agent skips that scrape. Defaults match the upstream
+  # kube-prometheus-stack and kube-state-metrics chart service names.
+  ksmEndpoint: "http://kube-state-metrics.kube-system.svc:8080/metrics"
+  nodeExporterEndpoint: ""
+
+agent:
+  push:
+    interval: 5m
+  scrape:
+    interval: 60s
+  buffer:
+    retention: 24h
+  events:
+    enabled: true
+  inventory:
+    enabled: true
+  # Agent will patch its own Deployment to a newer tag when the server
+  # advertises one. Limited by RBAC to *only* this Deployment.
+  autoUpdate: true
+  logLevel: info
+
+image:
+  repository: ghcr.io/pingreports/k8s-agent
+  tag: ""  # defaults to chart appVersion
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 96Mi
+  limits:
+    cpu: 500m
+    memory: 384Mi
+
+# Storage for the on-disk send buffer. emptyDir is ephemeral; switch to a
+# PVC if you want pushes to survive pod restarts.
+buffer:
+  storage: emptyDir
+  size: 1Gi
+  storageClassName: ""
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}

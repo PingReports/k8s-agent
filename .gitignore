@@ -1,0 +1,7 @@
+/agent
+*.exe
+*.test
+*.out
+.idea/
+.vscode/
+dist/

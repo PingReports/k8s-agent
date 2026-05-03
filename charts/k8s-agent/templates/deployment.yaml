@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "k8s-agent.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "k8s-agent.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "k8s-agent.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels: {{- include "k8s-agent.labels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "k8s-agent.name" . }}
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: agent
+          image: {{ include "k8s-agent.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["--log-level={{ .Values.agent.logLevel }}"]
+          env:
+            - name: PR_CLUSTER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "k8s-agent.name" . }}-creds
+                  key: cluster-id
+            - name: PR_CLUSTER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "k8s-agent.name" . }}-creds
+                  key: cluster-secret
+            - name: PR_INGEST_ENDPOINT
+              value: {{ .Values.ingest.endpoint | quote }}
+            - name: PR_KSM_URL
+              value: {{ .Values.metrics.ksmEndpoint | quote }}
+            - name: PR_NODE_EXPORTER_URL
+              value: {{ .Values.metrics.nodeExporterEndpoint | quote }}
+            - name: PR_PUSH_INTERVAL
+              value: {{ .Values.agent.push.interval | quote }}
+            - name: PR_SCRAPE_INTERVAL
+              value: {{ .Values.agent.scrape.interval | quote }}
+            - name: PR_BUFFER_RETENTION
+              value: {{ .Values.agent.buffer.retention | quote }}
+            - name: PR_BUFFER_DIR
+              value: /var/lib/pr-k8s-agent
+            - name: PR_EVENTS_ENABLED
+              value: {{ .Values.agent.events.enabled | quote }}
+            - name: PR_INVENTORY_ENABLED
+              value: {{ .Values.agent.inventory.enabled | quote }}
+            - name: PR_AUTO_UPDATE
+              value: {{ .Values.agent.autoUpdate | quote }}
+            - name: PR_OWN_NAMESPACE
+              value: {{ .Release.Namespace | quote }}
+            - name: PR_OWN_DEPLOYMENT
+              value: {{ include "k8s-agent.name" . | quote }}
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+            - name: buffer
+              mountPath: /var/lib/pr-k8s-agent
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if eq .Values.buffer.storage "pvc" }}
+        - name: buffer
+          persistentVolumeClaim:
+            claimName: {{ include "k8s-agent.name" . }}-buffer
+        {{- else }}
+        - name: buffer
+          emptyDir:
+            sizeLimit: {{ .Values.buffer.size }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- if eq .Values.buffer.storage "pvc" }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "k8s-agent.name" . }}-buffer
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "k8s-agent.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- if .Values.buffer.storageClassName }}
+  storageClassName: {{ .Values.buffer.storageClassName | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.buffer.size }}
+{{- end }}
