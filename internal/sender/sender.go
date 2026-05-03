@@ -171,7 +171,11 @@ func startsWith(s, prefix string) bool {
 }
 
 // Keys we keep in the per-row label map. Everything else is dropped to avoid
-// label-cardinality explosions on the server side.
+// label-cardinality explosions on the server side. Dimensional keys
+// (cpu/mode/device/interface/mountpoint) are kept on every metric because
+// node-exporter samples are useless without them — you can't compute per-CPU
+// usage without the cpu label, can't pick a network interface without
+// device, etc.
 var keepLabels = map[string]struct{}{
 	"phase":           {},
 	"condition":       {},
@@ -186,6 +190,16 @@ var keepLabels = map[string]struct{}{
 	"role":            {},
 	"type":            {},
 	"verb":            {},
+	// dimensional — needed for per-resource aggregation
+	"cpu":             {},
+	"mode":            {},
+	"device":          {},
+	"interface":       {},
+	"mountpoint":      {},
+	"fstype":          {},
+	"chip":            {},
+	"sensor":          {},
+	"state":           {},
 }
 
 // Metrics where we keep the FULL label set — they're identifying info-style
