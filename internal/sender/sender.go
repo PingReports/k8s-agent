@@ -101,12 +101,23 @@ func New(cfg *config.Config) *Sender {
 // label map is subset to a small set of identifying keys per metric to keep
 // the on-the-wire payload small.
 func MetricsToPoints(now time.Time, samples []scraper.Sample) []MetricPoint {
+	return MetricsToPointsWithNode(now, samples, "")
+}
+
+// MetricsToPointsWithNode is like MetricsToPoints but stamps every row with
+// ``nodeOverride`` on its ``node`` column (if the sample's labels don't
+// already provide one). Used by the per-pod node-exporter scrape path so
+// per-node rollups have a key to group on.
+func MetricsToPointsWithNode(now time.Time, samples []scraper.Sample, nodeOverride string) []MetricPoint {
 	out := make([]MetricPoint, 0, len(samples))
 	for _, s := range samples {
 		ns := s.Labels["namespace"]
 		obj := pickObjectName(s.Labels)
 		kind := pickKind(s.Name, s.Labels)
 		node := s.Labels["node"]
+		if node == "" {
+			node = nodeOverride
+		}
 		labels := pickLabelsForMetric(s.Name, s.Labels)
 		out = append(out, MetricPoint{
 			Ts:     now,

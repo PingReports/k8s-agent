@@ -46,6 +46,14 @@ spec:
               value: {{ .Values.metrics.ksmEndpoint | quote }}
             - name: PR_NODE_EXPORTER_URL
               value: {{ .Values.metrics.nodeExporterEndpoint | quote }}
+            - name: PR_NODE_EXPORTER_POD_LABELS
+              value: {{ .Values.metrics.nodeExporterPodLabels | default "" | quote }}
+            - name: PR_NODE_EXPORTER_POD_PORT
+              value: {{ .Values.metrics.nodeExporterPodPort | default 9100 | quote }}
+            - name: PR_NODE_EXPORTER_POD_PATH
+              value: {{ .Values.metrics.nodeExporterPodPath | default "/metrics" | quote }}
+            - name: PR_NODE_EXPORTER_POD_SCHEME
+              value: {{ .Values.metrics.nodeExporterPodScheme | default "http" | quote }}
             - name: PR_PUSH_INTERVAL
               value: {{ .Values.agent.push.interval | quote }}
             - name: PR_SCRAPE_INTERVAL

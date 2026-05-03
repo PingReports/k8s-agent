@@ -33,6 +33,18 @@ func NewScraper(url string, filter func(string) bool) *Scraper {
 	}
 }
 
+// ScrapeAt is identical to Scrape but uses an arbitrary URL — used by the
+// per-pod discovery path so the same parser/filter pipeline is shared.
+func (s *Scraper) ScrapeAt(ctx context.Context, url string) ([]Sample, error) {
+	if url == "" {
+		return nil, nil
+	}
+	prev := s.URL
+	s.URL = url
+	defer func() { s.URL = prev }()
+	return s.Scrape(ctx)
+}
+
 func (s *Scraper) Scrape(ctx context.Context) ([]Sample, error) {
 	if s.URL == "" {
 		return nil, nil

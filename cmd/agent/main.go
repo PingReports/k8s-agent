@@ -60,6 +60,17 @@ func main() {
 	if cfg.NodeExporterURL != "" {
 		nodeexp = scraper.NewScraper(cfg.NodeExporterURL, scraper.IsKnownPrefix)
 	}
+	// Per-pod node-exporter discovery — required for per-node CPU/disk/net
+	// rollups. Without this, every sample lands with an empty `node` and
+	// rate-by-node queries collapse to NULL.
+	nedisco, err := scraper.NewDiscoverer(
+		cfg.NodeExporterPodLabels, cfg.NodeExporterPodScheme,
+		cfg.NodeExporterPodPort, cfg.NodeExporterPodPath,
+	)
+	if err != nil {
+		logger.Warn("node-exporter discovery disabled", "err", err)
+	}
+	nepods := scraper.NewScraper("", scraper.IsKnownPrefix)
 
 	var evWatcher *events.Watcher
 	if cfg.EventsEnabled {
@@ -102,7 +113,7 @@ func main() {
 	defer pruneTick.Stop()
 
 	// Eager first scrape so the dashboard isn't blank for the first cycle.
-	scrapeBuf = append(scrapeBuf, doScrape(ctx, ksm, nodeexp, logger)...)
+	scrapeBuf = append(scrapeBuf, doScrape(ctx, ksm, nodeexp, nepods, nedisco, logger)...)
 
 	for {
 		select {
@@ -110,7 +121,7 @@ func main() {
 			logger.Info("shutting down")
 			return
 		case <-scrapeTick.C:
-			scrapeBuf = append(scrapeBuf, doScrape(ctx, ksm, nodeexp, logger)...)
+			scrapeBuf = append(scrapeBuf, doScrape(ctx, ksm, nodeexp, nepods, nedisco, logger)...)
 		case <-pruneTick.C:
 			if err := buf.Prune(); err != nil {
 				logger.Warn("prune buffer", "err", err)
@@ -121,7 +132,10 @@ func main() {
 	}
 }
 
-func doScrape(ctx context.Context, ksm, nodeexp *scraper.Scraper, logger *slog.Logger) []sender.MetricPoint {
+func doScrape(
+	ctx context.Context, ksm, nodeexp, nepods *scraper.Scraper,
+	nedisco *scraper.Discoverer, logger *slog.Logger,
+) []sender.MetricPoint {
 	now := time.Now().UTC()
 	out := make([]sender.MetricPoint, 0, 1024)
 	if ksm != nil {
@@ -130,6 +144,25 @@ func doScrape(ctx context.Context, ksm, nodeexp *scraper.Scraper, logger *slog.L
 			logger.Warn("ksm scrape failed", "err", err)
 		} else {
 			out = append(out, sender.MetricsToPoints(now, samples)...)
+		}
+	}
+	// Per-pod discovery — labels each sample with the node it was scraped from.
+	if nedisco != nil && nepods != nil {
+		targets, err := nedisco.Discover(ctx)
+		if err != nil {
+			logger.Warn("node-exporter discovery failed", "err", err)
+		} else if len(targets) > 0 {
+			for _, t := range targets {
+				samples, err := nepods.ScrapeAt(ctx, t.URL)
+				if err != nil {
+					logger.Warn("node-exporter pod scrape failed", "url", t.URL, "err", err)
+					continue
+				}
+				out = append(out, sender.MetricsToPointsWithNode(now, samples, t.Node)...)
+			}
+			// When discovery succeeds we skip the legacy single-Service path
+			// to avoid double-counting.
+			return out
 		}
 	}
 	if nodeexp != nil {

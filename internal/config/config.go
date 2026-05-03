@@ -18,10 +18,14 @@ type Config struct {
 	BufferRetention  time.Duration
 	MaxBatchBytes    int
 
-	KubeStateMetricsURL string
-	NodeExporterURL     string
-	EventsEnabled       bool
-	InventoryEnabled    bool
+	KubeStateMetricsURL    string
+	NodeExporterURL        string
+	NodeExporterPodLabels  string
+	NodeExporterPodPort    int
+	NodeExporterPodPath    string
+	NodeExporterPodScheme  string
+	EventsEnabled          bool
+	InventoryEnabled       bool
 
 	AgentVersion  string
 	AutoUpdate    bool
@@ -36,8 +40,12 @@ func Load(version string) (*Config, error) {
 		ClusterSecret:       os.Getenv("PR_CLUSTER_SECRET"),
 		Endpoint:            envOr("PR_INGEST_ENDPOINT", "https://app-pr.sxp.dev/api/v1/k8s/ingest"),
 		BufferDir:           envOr("PR_BUFFER_DIR", "/var/lib/pr-k8s-agent"),
-		KubeStateMetricsURL: envOr("PR_KSM_URL", "http://kube-state-metrics.kube-system.svc:8080/metrics"),
-		NodeExporterURL:     envOr("PR_NODE_EXPORTER_URL", ""),
+		KubeStateMetricsURL:   envOr("PR_KSM_URL", "http://kube-state-metrics.kube-system.svc:8080/metrics"),
+		NodeExporterURL:       envOr("PR_NODE_EXPORTER_URL", ""),
+		NodeExporterPodLabels: envOr("PR_NODE_EXPORTER_POD_LABELS", "app.kubernetes.io/name=prometheus-node-exporter"),
+		NodeExporterPodPort:   envInt("PR_NODE_EXPORTER_POD_PORT", 9100),
+		NodeExporterPodPath:   envOr("PR_NODE_EXPORTER_POD_PATH", "/metrics"),
+		NodeExporterPodScheme: envOr("PR_NODE_EXPORTER_POD_SCHEME", "http"),
 		OwnNamespace:        envOr("PR_OWN_NAMESPACE", "pingreports-agent"),
 		OwnDeployment:       envOr("PR_OWN_DEPLOYMENT", "pr-k8s-agent"),
 		MaxBatchBytes:       envInt("PR_MAX_BATCH_BYTES", 6*1024*1024),

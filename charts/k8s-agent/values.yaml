@@ -11,9 +11,20 @@ ingest:
   endpoint: https://app-pr.sxp.dev/api/v1/k8s/ingest
 
 metrics:
-  # If unset, the agent skips that scrape. Defaults match the upstream
-  # kube-prometheus-stack and kube-state-metrics chart service names.
+  # kube-state-metrics is cluster-wide so a single Service URL is enough.
   ksmEndpoint: "http://kube-state-metrics.kube-system.svc:8080/metrics"
+
+  # node-exporter runs as a DaemonSet, so the agent discovers every pod by
+  # label and scrapes each one individually — that's the only way per-node
+  # rollups (CPU%, mem%, net rx/tx, disk I/O) work. Override the selector if
+  # your node-exporter chart uses a different label.
+  nodeExporterPodLabels: "app.kubernetes.io/name=prometheus-node-exporter"
+  nodeExporterPodPort: 9100
+  nodeExporterPodPath: "/metrics"
+  nodeExporterPodScheme: "http"
+
+  # Legacy single-Service URL — used as a fallback only if the discovery
+  # above returns zero pods. Leave empty to disable the fallback.
   nodeExporterEndpoint: ""
 
 agent:
