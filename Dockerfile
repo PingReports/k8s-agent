@@ -5,7 +5,7 @@ RUN go mod download || true
 COPY . .
 ARG VERSION=0.0.0-dev
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -trimpath -ldflags "-s -w -X main.Version=${VERSION}" \
+    go build -trimpath -buildvcs=false -ldflags "-s -w -X main.Version=${VERSION}" \
     -o /out/agent ./cmd/agent
 
 FROM gcr.io/distroless/static:nonroot

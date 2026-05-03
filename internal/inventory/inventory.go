@@ -34,6 +34,7 @@ type Snapshot struct {
 	NodeCount      int
 	PodCount       int
 	NamespaceCount int
+	ClusterVersion string
 }
 
 // Collector takes a periodic inventory of the cluster's workload-shaped
@@ -93,13 +94,27 @@ func (c *Collector) Snapshot(ctx context.Context) (Snapshot, error) {
 				break
 			}
 		}
+		// First node we successfully read becomes the cluster's
+		// reported version. KubeletVersion follows the K8s release
+		// cadence so this is the right thing to surface.
+		if out.ClusterVersion == "" {
+			out.ClusterVersion = n.Status.NodeInfo.KubeletVersion
+		}
+		labels := trimLabels(n.Labels)
+		if labels == nil {
+			labels = make(map[string]string, 4)
+		}
+		labels["kubelet_version"] = n.Status.NodeInfo.KubeletVersion
+		labels["kernel"] = n.Status.NodeInfo.KernelVersion
+		labels["os_image"] = n.Status.NodeInfo.OSImage
+		labels["container_runtime"] = n.Status.NodeInfo.ContainerRuntimeVersion
 		out.Items = append(out.Items, Item{
 			SnapshotTs: now,
 			Kind:       "Node",
 			Name:       n.Name,
 			UID:        string(n.UID),
 			Phase:      phase,
-			Labels:     trimLabels(n.Labels),
+			Labels:     labels,
 		})
 	}
 

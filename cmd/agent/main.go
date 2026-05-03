@@ -173,6 +173,7 @@ func doPush(
 			payload.NodeCount = snap.NodeCount
 			payload.PodCount = snap.PodCount
 			payload.NamespaceCount = snap.NamespaceCount
+			payload.ClusterVersion = snap.ClusterVersion
 		}
 	}
 

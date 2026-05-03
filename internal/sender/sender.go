@@ -28,6 +28,7 @@ type Payload struct {
 	NodeCount      int             `json:"node_count"`
 	PodCount       int             `json:"pod_count"`
 	NamespaceCount int             `json:"namespace_count"`
+	ClusterVersion string          `json:"cluster_version,omitempty"`
 	Metrics        []MetricPoint   `json:"metrics"`
 	Events         []EventEntry    `json:"events"`
 	Inventory      []InventoryItem `json:"inventory"`
@@ -106,7 +107,7 @@ func MetricsToPoints(now time.Time, samples []scraper.Sample) []MetricPoint {
 		obj := pickObjectName(s.Labels)
 		kind := pickKind(s.Name, s.Labels)
 		node := s.Labels["node"]
-		labels := pickIdentifyingLabels(s.Labels)
+		labels := pickLabelsForMetric(s.Name, s.Labels)
 		out = append(out, MetricPoint{
 			Ts:     now,
 			Name:   s.Name,
@@ -172,21 +173,62 @@ func startsWith(s, prefix string) bool {
 // Keys we keep in the per-row label map. Everything else is dropped to avoid
 // label-cardinality explosions on the server side.
 var keepLabels = map[string]struct{}{
-	"phase":          {},
-	"condition":      {},
-	"status":         {},
-	"reason":         {},
-	"resource":       {},
-	"unit":           {},
+	"phase":           {},
+	"condition":       {},
+	"status":          {},
+	"reason":          {},
+	"resource":        {},
+	"unit":            {},
 	"created_by_kind": {},
-	"image":          {},
-	"container":      {},
-	"job_name":       {},
+	"image":           {},
+	"container":       {},
+	"job_name":        {},
+	"role":            {},
+	"type":            {},
+	"verb":            {},
 }
 
-func pickIdentifyingLabels(in map[string]string) map[string]string {
+// Metrics where we keep the FULL label set — they're identifying info-style
+// metrics, not high-cardinality samples.
+var keepAllLabelsMetrics = map[string]struct{}{
+	"kube_node_info":                 {},
+	"kube_pod_info":                  {},
+	"kube_pod_status_phase":          {},
+	"kube_pod_status_ready":          {},
+	"kube_deployment_status_replicas": {},
+	"kube_deployment_spec_replicas":  {},
+	"kube_node_status_condition":     {},
+	"kube_node_status_capacity":      {},
+	"kube_node_status_allocatable":   {},
+	"kube_namespace_status_phase":    {},
+	"kube_persistentvolumeclaim_status_phase": {},
+	"kube_horizontalpodautoscaler_status_current_replicas": {},
+	"kube_horizontalpodautoscaler_status_desired_replicas": {},
+	"kube_horizontalpodautoscaler_spec_max_replicas":       {},
+}
+
+func pickLabelsForMetric(metric string, in map[string]string) map[string]string {
 	if len(in) == 0 {
 		return nil
+	}
+	if _, all := keepAllLabelsMetrics[metric]; all {
+		// Cap to 24 entries / 128 chars per kv to bound payload size.
+		out := make(map[string]string, len(in))
+		count := 0
+		for k, v := range in {
+			if count >= 24 {
+				break
+			}
+			if len(k) > 128 {
+				k = k[:128]
+			}
+			if len(v) > 128 {
+				v = v[:128]
+			}
+			out[k] = v
+			count++
+		}
+		return out
 	}
 	out := make(map[string]string, 4)
 	for k := range keepLabels {
