@@ -38,7 +38,7 @@ func Load(version string) (*Config, error) {
 		AgentVersion:        version,
 		ClusterID:           os.Getenv("PR_CLUSTER_ID"),
 		ClusterSecret:       os.Getenv("PR_CLUSTER_SECRET"),
-		Endpoint:            envOr("PR_INGEST_ENDPOINT", "https://app-pr.sxp.dev/api/v1/k8s/ingest"),
+		Endpoint:            envOr("PR_INGEST_ENDPOINT", "https://app.pingreports.com/api/v1/k8s/ingest"),
 		BufferDir:           envOr("PR_BUFFER_DIR", "/var/lib/pr-k8s-agent"),
 		KubeStateMetricsURL:   envOr("PR_KSM_URL", "http://kube-state-metrics.kube-system.svc:8080/metrics"),
 		NodeExporterURL:       envOr("PR_NODE_EXPORTER_URL", ""),

@@ -1,6 +1,6 @@
 # PingReports k8s-agent
 
-Push-only Kubernetes monitoring agent for [PingReports](https://app-pr.sxp.dev).
+Push-only Kubernetes monitoring agent for [PingReports](https://app.pingreports.com).
 Runs inside your cluster, scrapes kube-state-metrics + node-exporter, watches
 Events, and ships compressed batches to PingReports every 5 minutes.
 

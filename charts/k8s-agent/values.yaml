@@ -8,7 +8,7 @@ cluster:
   secret: ""
 
 ingest:
-  endpoint: https://app-pr.sxp.dev/api/v1/k8s/ingest
+  endpoint: https://app.pingreports.com/api/v1/k8s/ingest
 
 metrics:
   # kube-state-metrics is cluster-wide so a single Service URL is enough.
